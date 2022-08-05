@@ -19,6 +19,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--vocab', required=True)
 parser.add_argument('--atom_vocab', default=common_atom_vocab)
 parser.add_argument('--model', required=True)
+parser.add_argument('--mols_to_sample', default=None)
 
 parser.add_argument('--seed', type=int, default=7)
 parser.add_argument('--nsample', type=int, default=10000)
@@ -49,7 +50,13 @@ random.seed(args.seed)
 
 with torch.no_grad():
     for _ in tqdm(range(args.nsample // args.batch_size)):
-        smiles_list = model.sample(args.batch_size, greedy=True)
+        if args.mols_to_sample:
+            smiles_list = model.sample(args.batch_size, greedy=True)
+        else:
+            with open(args.mols_to_sample) as f:
+                specific_mols = [smi[:-2] for smi in f.readlines()]
+                print(specific_mols[:5])
+            smiles_list = model.specific_sample(args.batch_size, specific_mols, greedy=True, )
         for _,smiles in enumerate(smiles_list):
-            print(smiles)
+                print(smiles)
 
