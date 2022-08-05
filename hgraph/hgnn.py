@@ -1,11 +1,14 @@
 import torch
 import torch.nn as nn
+import numpy as np
+import random
 import rdkit.Chem as Chem
 import torch.nn.functional as F
 from hgraph.mol_graph import MolGraph
 from hgraph.encoder import HierMPNEncoder
 from hgraph.decoder import HierMPNDecoder
 from hgraph.nnutils import *
+from preprocess import tensorize
 
 
 def make_cuda(tensors):
@@ -14,6 +17,12 @@ def make_cuda(tensors):
     tree_tensors = [make_tensor(x).cuda().long() for x in tree_tensors[:-1]] + [tree_tensors[-1]]
     graph_tensors = [make_tensor(x).cuda().long() for x in graph_tensors[:-1]] + [graph_tensors[-1]]
     return tree_tensors, graph_tensors
+
+def tensor_to_numpy(latent_tensors):
+    return latent_tensors.detach().numpy()
+
+def numpy_to_tensor(latent_arrays):
+    return torch.from_numpy(latent_arrays)
 
 
 class HierVAE(nn.Module):
@@ -24,6 +33,7 @@ class HierVAE(nn.Module):
         self.decoder = HierMPNDecoder(args.vocab, args.atom_vocab, args.rnn_type, args.embed_size, args.hidden_size, args.latent_size, args.diterT, args.diterG, args.dropout)
         self.encoder.tie_embedding(self.decoder.hmpn)
         self.latent_size = args.latent_size
+        self.vocab = args.vocab
 
         self.R_mean = nn.Linear(args.hidden_size, args.latent_size)
         self.R_var = nn.Linear(args.hidden_size, args.latent_size)
@@ -40,6 +50,34 @@ class HierVAE(nn.Module):
     def sample(self, batch_size, greedy):
         root_vecs = torch.randn(batch_size, self.latent_size).cuda()
         return self.decoder.decode((root_vecs, root_vecs, root_vecs), greedy=greedy, max_decode_step=150)
+
+    def specific_sample(self, batch_size, greedy, specific_mols):
+        latent_vecs_of_specified_mols = tensor_to_numpy(self.generate_latent_space_for_mol(specific_mols))
+        sampled_latent_variables = numpy_to_tensor(np.array([self.random_sample(latent_vecs_of_specified_mols) for _ in range(batch_size)], dtype=np.float16))
+        return self.decoder.decode((sampled_latent_variables.float(),
+                                    sampled_latent_variables.float(),
+                                    sampled_latent_variables.float()),
+                                    greedy=greedy,
+                                    max_decode_step=150)
+
+    def generate_latent_space_for_mol(self, smiles):
+        molecule_tensor = tensorize(smiles, self.vocab)
+        tree_tensors, graph_tensors = make_cuda(molecule_tensor[1])
+        root_vecs, tree_vecs, _, graph_vecs = self.encoder(tree_tensors, graph_tensors)
+        vectors, _ = self.rsample(root_vecs, self.R_mean, self.R_var, perturb=False)
+        return vectors
+
+    def random_sample(self, matrix):
+        """Randomly samples values between the minimum and maximum values
+        provided in a matrix and therefore interpolates within the latent
+        space specified.
+        """
+        random_sample_latent_space = []
+        for col in matrix.T:
+            minimum = min(col)
+            maximum = max(col)
+            random_sample_latent_space.append(random.uniform(minimum, maximum))
+        return np.array(random_sample_latent_space)
 
     def reconstruct(self, batch):
         graphs, tensors, _ = batch
