@@ -51,12 +51,12 @@ random.seed(args.seed)
 with torch.no_grad():
     for _ in tqdm(range(args.nsample // args.batch_size)):
         if args.mols_to_sample:
-            smiles_list = model.sample(args.batch_size, greedy=True)
+            smiles_list = model.sample(args.batch_size, greedy=True).cuda()
         else:
             with open(args.mols_to_sample) as f:
                 specific_mols = [smi[:-2] for smi in f.readlines()]
                 print(specific_mols[:5])
-            smiles_list = model.specific_sample(args.batch_size, specific_mols, greedy=True, )
+            smiles_list = model.specific_sample(args.batch_size, specific_mols, greedy=True).cuda()
         for _,smiles in enumerate(smiles_list):
                 print(smiles)
 
