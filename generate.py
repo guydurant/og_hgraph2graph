@@ -11,6 +11,14 @@ from tqdm import tqdm
 
 from hgraph import *
 import rdkit
+from preprocess import tensorize
+
+def generate_latent_space_for_mol(model, smiles):
+    molecule_tensor = tensorize(smiles, model.vocab)
+    tree_tensors, graph_tensors = hgnn.make_cuda(molecule_tensor[1])
+    root_vecs, tree_vecs, _, graph_vecs = model.encoder(tree_tensors, graph_tensors)
+    vectors, _ = model.rsample(root_vecs, model.R_mean, model.R_var, perturb=False)
+    return vectors          
 
 lg = rdkit.RDLogger.logger() 
 lg.setLevel(rdkit.RDLogger.CRITICAL)
@@ -49,14 +57,15 @@ torch.manual_seed(args.seed)
 random.seed(args.seed)
 
 with torch.no_grad():
-    for _ in tqdm(range(args.nsample // args.batch_size)):
-        if not args.mols_to_sample:
+    if not args.mols_to_sample:
+        for _ in tqdm(range(args.nsample // args.batch_size)):
             smiles_list = model.sample(args.batch_size, greedy=True).cuda()
-        else:
-            with open(args.mols_to_sample) as f:
-                specific_mols = [smi[:-2] for smi in f.readlines()]
-                print(specific_mols[:5])
-            smiles_list = model.specific_sample(args.batch_size, specific_mols, greedy=True).cuda()
-        for _,smiles in enumerate(smiles_list):
+    else:
+        with open(args.mols_to_sample) as f:
+            smiles_list = [smi for smi in f.readlines()]
+        selected_mol_vectors = generate_latent_space_for_mol(model, smiles_list).cuda()
+        for _ in tqdm(range(args.nsample // args.batch_size)):
+            smiles_list = model.specific_sample(args.batch_size, selected_mol_vectors, greedy=True)
+            for _,smiles in enumerate(smiles_list):
                 print(smiles)
 

@@ -51,9 +51,8 @@ class HierVAE(nn.Module):
         root_vecs = torch.randn(batch_size, self.latent_size).cuda()
         return self.decoder.decode((root_vecs, root_vecs, root_vecs), greedy=greedy, max_decode_step=150)
 
-    def specific_sample(self, batch_size, specific_mols, greedy):
-        latent_vecs_of_specified_mols = self.generate_latent_space_for_mol(specific_mols)
-        sampled_latent_variables = torch.FloatTensor([self.random_sample(latent_vecs_of_specified_mols) for _ in range(batch_size)])
+    def specific_sample(self, batch_size, specific_mols_vectors, greedy):
+        sampled_latent_variables = torch.stack([self.random_sample(specific_mols_vectors) for _ in range(batch_size)]).cuda()
         return self.decoder.decode((sampled_latent_variables.float(),
                                     sampled_latent_variables.float(),
                                     sampled_latent_variables.float()),
