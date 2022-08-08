@@ -52,8 +52,8 @@ class HierVAE(nn.Module):
         return self.decoder.decode((root_vecs, root_vecs, root_vecs), greedy=greedy, max_decode_step=150)
 
     def specific_sample(self, batch_size, specific_mols, greedy):
-        latent_vecs_of_specified_mols = tensor_to_numpy(self.generate_latent_space_for_mol(specific_mols))
-        sampled_latent_variables = numpy_to_tensor(np.array([self.random_sample(latent_vecs_of_specified_mols) for _ in range(batch_size)], dtype=np.float16))
+        latent_vecs_of_specified_mols = self.generate_latent_space_for_mol(specific_mols)
+        sampled_latent_variables = torch.FloatTensor([self.random_sample(latent_vecs_of_specified_mols) for _ in range(batch_size)])
         return self.decoder.decode((sampled_latent_variables.float(),
                                     sampled_latent_variables.float(),
                                     sampled_latent_variables.float()),
@@ -73,11 +73,11 @@ class HierVAE(nn.Module):
         space specified.
         """
         random_sample_latent_space = []
-        for col in matrix.T:
+        for col in torch.transpose(matrix, 0, 1):
             minimum = min(col)
             maximum = max(col)
             random_sample_latent_space.append(random.uniform(minimum, maximum))
-        return np.array(random_sample_latent_space)
+        return torch.FloatTensor(random_sample_latent_space)
 
     def reconstruct(self, batch):
         graphs, tensors, _ = batch
