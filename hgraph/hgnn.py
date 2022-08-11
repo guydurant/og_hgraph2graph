@@ -51,7 +51,7 @@ class HierVAE(nn.Module):
         root_vecs = torch.randn(batch_size, self.latent_size).cuda()
         return self.decoder.decode((root_vecs, root_vecs, root_vecs), greedy=greedy, max_decode_step=150)
 
-    def specific_sample(self, batch_size, specific_mols_vectors, greedy, mode, noise=0.1):
+    def specific_sample(self, batch_size, specific_mols_vectors, mode, greedy, noise=0.1):
         if mode == 'random':
             sampled_latent_variables = torch.stack([self.random_sample(specific_mols_vectors) for _ in range(batch_size)]).cuda()
         elif mode == 'noise':
