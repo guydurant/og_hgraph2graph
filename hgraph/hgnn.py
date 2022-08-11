@@ -82,7 +82,7 @@ class HierVAE(nn.Module):
         return torch.FloatTensor(random_sample_latent_space)
 
     def sample_around_mol(self, matrix, noise):
-        mols_tensor = torch.transpose(matrix, 1, 0).cuda()
+        mols_tensor = torch.transpose(matrix, 0, 1).cuda()
         print(mols_tensor.shape)
         unif = torch.ones(mols_tensor.shape[0])
         idx = unif.multinomial(1, replacement=True)
