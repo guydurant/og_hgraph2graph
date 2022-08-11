@@ -72,11 +72,20 @@ class HierVAE(nn.Module):
         space specified.
         """
         random_sample_latent_space = []
+        print(matrix.shape)
         for col in torch.transpose(matrix, 0, 1):
+            print(len(col))
             minimum = min(col)
             maximum = max(col)
             random_sample_latent_space.append(random.uniform(minimum, maximum))
         return torch.FloatTensor(random_sample_latent_space)
+
+    def sample_around_mol(self, matrix):
+        for col in torch.transpose(matrix, 0, 1):
+            print(col)
+        # add noise (with distance defined)
+        # x = x + (0.1**0.5)*torch.randn(5, 10, 20 <- shape should be same as random mols)
+        return new_tensor
 
     def reconstruct(self, batch):
         graphs, tensors, _ = batch

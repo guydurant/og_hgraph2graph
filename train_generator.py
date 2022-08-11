@@ -86,7 +86,9 @@ for epoch in range(args.epoch):
 
     for batch in tqdm(dataset):
         total_step += 1
-        model.zero_grad()
+        # model.zero_grad()
+        for param in model.parameters(): # Supposedly a faster method for 0-ing grads
+            param.grad = None #https://betterprogramming.pub/how-to-make-your-pytorch-code-run-faster-93079f3c1f7b
         loss, kl_div, wacc, iacc, tacc, sacc = model(*batch, beta=beta)
 
         loss.backward()
