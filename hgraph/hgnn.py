@@ -86,7 +86,7 @@ class HierVAE(nn.Module):
         unif = torch.ones(mols_tensor.shape[0])
         idx = unif.multinomial(1, replacement=True)
         samples = mols_tensor[idx].cuda()
-        new_vector = samples + (noise.cuda()**0.5)*torch.randn(*samples.shape)
+        new_vector = samples + (noise**0.5)*torch.randn_like(samples)
         return new_vector
 
     def reconstruct(self, batch):
