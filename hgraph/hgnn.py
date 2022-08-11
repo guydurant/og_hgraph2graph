@@ -55,7 +55,7 @@ class HierVAE(nn.Module):
         if mode == 'random':
             sampled_latent_variables = torch.stack([self.random_sample(specific_mols_vectors) for _ in range(batch_size)]).cuda()
         elif mode == 'noise':
-            sampled_latent_variables = torch.stack([self.random_sample(specific_mols_vectors, noise) for _ in range(batch_size)]).cuda()
+            sampled_latent_variables = torch.stack([self.sample_around_mol(specific_mols_vectors, noise) for _ in range(batch_size)]).cuda()
         return self.decoder.decode((sampled_latent_variables.float(),
                                     sampled_latent_variables.float(),
                                     sampled_latent_variables.float()),
