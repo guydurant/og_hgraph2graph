@@ -10,8 +10,11 @@ import numpy as np
 import argparse
 import os
 from tqdm.auto import tqdm
+import wandb
 
 from hgraph import *
+
+wandb.init(project="HGVAE", entity="guidodee")
 
 lg = rdkit.RDLogger.logger() 
 lg.setLevel(rdkit.RDLogger.CRITICAL)
@@ -51,6 +54,15 @@ parser.add_argument('--save_iter', type=int, default=5000)
 args = parser.parse_args()
 print(args)
 
+wandb.config = {
+    "learning_rate": args.lr,
+    "epochs": args.epochs,
+    "batch_size": args.batch_size,
+    "latent_size": args.latent_size,
+    "rnn_type": args.rnn_type,
+    "hidden_size": args.hidden_size,
+    }
+
 torch.manual_seed(args.seed)
 random.seed(args.seed)
 
@@ -58,6 +70,7 @@ vocab = [x.strip("\r\n ").split() for x in open(args.vocab)]
 args.vocab = PairVocab(vocab)
 
 model = HierVAE(args).cuda()
+wandb.watch(model)
 print("Model #Params: %dK" % (sum([x.nelement() for x in model.parameters()]) / 1000,))
 
 for param in model.parameters():
@@ -88,7 +101,7 @@ for epoch in range(args.epoch):
         total_step += 1
         model.zero_grad()
         loss, kl_div, wacc, iacc, tacc, sacc = model(*batch, beta=beta)
-
+        wandb.log({"loss": loss})
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), args.clip_norm)
         optimizer.step()
