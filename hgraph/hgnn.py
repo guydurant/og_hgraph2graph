@@ -89,7 +89,7 @@ class HierVAE(nn.Module):
         samples = matrix[idx].cuda()
         print(samples.shape)
         new_vector = samples + (noise**0.5)*torch.randn_like(samples)
-        return new_vector
+        return new_vector.squeeze()
 
     def reconstruct(self, batch):
         graphs, tensors, _ = batch
