@@ -1,3 +1,4 @@
+from email.utils import parsedate_tz
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -28,6 +29,8 @@ parser.add_argument('--vocab', required=True)
 parser.add_argument('--atom_vocab', default=common_atom_vocab)
 parser.add_argument('--model', required=True)
 parser.add_argument('--mols_to_sample', default=None)
+parser.add_argument('--mode', default='noise')
+parser.add_argument('--noise_level', default = 0.1)
 
 parser.add_argument('--seed', type=int, default=7)
 parser.add_argument('--nsample', type=int, default=10000)
@@ -65,7 +68,7 @@ with torch.no_grad():
             smiles_list = [smi for smi in f.readlines()]
         selected_mol_vectors = generate_latent_space_for_mol(model, smiles_list).cuda()
         for _ in tqdm(range(args.nsample // args.batch_size)):
-            smiles_list = model.specific_sample(args.batch_size, selected_mol_vectors, greedy=True)
+            smiles_list = model.specific_sample(args.batch_size, selected_mol_vectors, args.mode, greedy=True, noise = args.noise_level)
             for _,smiles in enumerate(smiles_list):
                 print(smiles)
 
