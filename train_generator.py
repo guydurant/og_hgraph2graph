@@ -114,7 +114,7 @@ for epoch in range(args.epoch):
             # https://betterprogramming.pub/how-to-make-your-pytorch-code-run-faster-93079f3c1f7b
             param.grad = None
         loss, kl_div, wacc, iacc, tacc, sacc = model(*batch, beta=beta)
-        wandb.log({"loss": loss})
+
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), args.clip_norm)
         optimizer.step()
@@ -122,11 +122,15 @@ for epoch in range(args.epoch):
         meters = meters + \
             np.array([kl_div, loss.item(), wacc.cpu() * 100,
                       iacc.cpu() * 100, tacc.cpu() * 100, sacc.cpu() * 100])
-
         if total_step % args.print_iter == 0:
             meters /= args.print_iter
             print("[%d] Beta: %.3f, KL: %.2f, loss: %.3f, Word: %.2f, %.2f, Topo: %.2f, Assm: %.2f, PNorm: %.2f, GNorm: %.2f" % (
                 total_step, beta, meters[0], meters[1], meters[2], meters[3], meters[4], meters[5], param_norm(model), grad_norm(model)))
+            wandb.log(
+                {
+                    "loss": meters[1],
+                    "KL": meters[0]
+                })
             sys.stdout.flush()
             meters *= 0
 
