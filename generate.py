@@ -78,6 +78,6 @@ with torch.no_grad():
         for _ in tqdm(range(args.nsample // args.batch_size)):
             smiles_list = model.specific_sample(
                 args.batch_size, selected_mol_vectors, args.mode, greedy=True, noise=args.noise_level)
-            with open(args.save_file) as f:
+            with open(args.save_file, 'a') as f:
                 for _, smiles in enumerate(smiles_list):
                     f.write(smiles+'\n')
