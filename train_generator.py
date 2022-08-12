@@ -120,8 +120,8 @@ for epoch in range(args.epoch):
         optimizer.step()
 
         meters = meters + \
-            np.array([kl_div, loss.item(), wacc * 100,
-                      iacc * 100, tacc * 100, sacc * 100])
+            np.array([kl_div, loss.item(), wacc.cpu() * 100,
+                      iacc.cpu() * 100, tacc.cpu() * 100, sacc.cpu() * 100])
 
         if total_step % args.print_iter == 0:
             meters /= args.print_iter
