@@ -5,7 +5,9 @@ import torch.optim.lr_scheduler as lr_scheduler
 from torch.utils.data import DataLoader
 
 import rdkit
-import math, random, sys
+import math
+import random
+import sys
 import numpy as np
 import argparse
 import os
@@ -16,7 +18,7 @@ from hgraph import *
 
 wandb.init(project="HGVAE", entity="guidodee")
 
-lg = rdkit.RDLogger.logger() 
+lg = rdkit.RDLogger.logger()
 lg.setLevel(rdkit.RDLogger.CRITICAL)
 
 parser = argparse.ArgumentParser()
@@ -56,22 +58,23 @@ print(args)
 
 wandb.config = {
     "learning_rate": args.lr,
-    "epochs": args.epochs,
+    "epochs": args.epoch,
     "batch_size": args.batch_size,
     "latent_size": args.latent_size,
     "rnn_type": args.rnn_type,
     "hidden_size": args.hidden_size,
-    }
+}
 
 torch.manual_seed(args.seed)
 random.seed(args.seed)
 
-vocab = [x.strip("\r\n ").split() for x in open(args.vocab)] 
+vocab = [x.strip("\r\n ").split() for x in open(args.vocab)]
 args.vocab = PairVocab(vocab)
 
 model = HierVAE(args).cuda()
 wandb.watch(model)
-print("Model #Params: %dK" % (sum([x.nelement() for x in model.parameters()]) / 1000,))
+print("Model #Params: %dK" %
+      (sum([x.nelement() for x in model.parameters()]) / 1000,))
 
 for param in model.parameters():
     if param.dim() == 1:
@@ -84,14 +87,21 @@ scheduler = lr_scheduler.ExponentialLR(optimizer, args.anneal_rate)
 
 if args.load_model:
     print('continuing from checkpoint ' + args.load_model)
-    model_state, optimizer_state, total_step, beta = torch.load(args.load_model)
+    model_state, optimizer_state, total_step, beta = torch.load(
+        args.load_model)
     model.load_state_dict(model_state)
     optimizer.load_state_dict(optimizer_state)
 else:
     total_step = beta = 0
 
-param_norm = lambda m: math.sqrt(sum([p.norm().item() ** 2 for p in m.parameters()]))
-grad_norm = lambda m: math.sqrt(sum([p.grad.norm().item() ** 2 for p in m.parameters() if p.grad is not None]))
+
+def param_norm(m): return math.sqrt(
+    sum([p.norm().item() ** 2 for p in m.parameters()]))
+
+
+def grad_norm(m): return math.sqrt(
+    sum([p.grad.norm().item() ** 2 for p in m.parameters() if p.grad is not None]))
+
 
 meters = np.zeros(6)
 for epoch in range(args.epoch):
@@ -100,25 +110,30 @@ for epoch in range(args.epoch):
     for batch in tqdm(dataset):
         total_step += 1
         # model.zero_grad()
-        for param in model.parameters(): # Supposedly a faster method for 0-ing grads
-            param.grad = None #https://betterprogramming.pub/how-to-make-your-pytorch-code-run-faster-93079f3c1f7b
+        for param in model.parameters():  #  Supposedly a faster method for 0-ing grads
+            # https://betterprogramming.pub/how-to-make-your-pytorch-code-run-faster-93079f3c1f7b
+            param.grad = None
         loss, kl_div, wacc, iacc, tacc, sacc = model(*batch, beta=beta)
         wandb.log({"loss": loss})
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), args.clip_norm)
         optimizer.step()
 
-        meters = meters + np.array([kl_div, loss.item(), wacc * 100, iacc * 100, tacc * 100, sacc * 100])
+        meters = meters + \
+            np.array([kl_div, loss.item(), wacc * 100,
+                      iacc * 100, tacc * 100, sacc * 100])
 
         if total_step % args.print_iter == 0:
             meters /= args.print_iter
-            print("[%d] Beta: %.3f, KL: %.2f, loss: %.3f, Word: %.2f, %.2f, Topo: %.2f, Assm: %.2f, PNorm: %.2f, GNorm: %.2f" % (total_step, beta, meters[0], meters[1], meters[2], meters[3], meters[4], meters[5], param_norm(model), grad_norm(model)))
+            print("[%d] Beta: %.3f, KL: %.2f, loss: %.3f, Word: %.2f, %.2f, Topo: %.2f, Assm: %.2f, PNorm: %.2f, GNorm: %.2f" % (
+                total_step, beta, meters[0], meters[1], meters[2], meters[3], meters[4], meters[5], param_norm(model), grad_norm(model)))
             sys.stdout.flush()
             meters *= 0
-        
+
         if total_step % args.save_iter == 0:
             ckpt = (model.state_dict(), optimizer.state_dict(), total_step, beta)
-            torch.save(ckpt, os.path.join(args.save_dir, f"model.ckpt.{total_step}"))
+            torch.save(ckpt, os.path.join(
+                args.save_dir, f"model.ckpt.{total_step}"))
 
         if total_step % args.anneal_iter == 0:
             scheduler.step()
