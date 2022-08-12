@@ -37,7 +37,7 @@ parser.add_argument('--model', required=True)
 parser.add_argument('--mols_to_sample', default=None)
 parser.add_argument('--mode', default='noise')
 parser.add_argument('--save_file', default='test.txt')
-parser.add_argument('--noise_level', default=0.1)
+parser.add_argument('--noise_level', type=float, default=0.1)
 
 parser.add_argument('--seed', type=int, default=7)
 parser.add_argument('--nsample', type=int, default=10000)
