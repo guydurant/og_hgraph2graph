@@ -51,8 +51,11 @@ class HierVAE(nn.Module):
         root_vecs = torch.randn(batch_size, self.latent_size).cuda()
         return self.decoder.decode((root_vecs, root_vecs, root_vecs), greedy=greedy, max_decode_step=150)
 
-    def specific_sample(self, batch_size, specific_mols_vectors, greedy):
-        sampled_latent_variables = torch.stack([self.random_sample(specific_mols_vectors) for _ in range(batch_size)]).cuda()
+    def specific_sample(self, batch_size, specific_mols_vectors, mode, greedy, noise=0.1):
+        if mode == 'random':
+            sampled_latent_variables = torch.stack([self.random_sample(specific_mols_vectors) for _ in range(batch_size)]).cuda()
+        elif mode == 'noise':
+            sampled_latent_variables = torch.stack([self.sample_around_mol(specific_mols_vectors, noise) for _ in range(batch_size)]).cuda()
         return self.decoder.decode((sampled_latent_variables.float(),
                                     sampled_latent_variables.float(),
                                     sampled_latent_variables.float()),
@@ -77,6 +80,14 @@ class HierVAE(nn.Module):
             maximum = max(col)
             random_sample_latent_space.append(random.uniform(minimum, maximum))
         return torch.FloatTensor(random_sample_latent_space)
+
+    def sample_around_mol(self, matrix, noise):
+        # mols_tensor = torch.transpose(matrix, 0, 1).cuda()
+        unif = torch.ones(matrix.shape[0])
+        idx = unif.multinomial(1, replacement=True)
+        samples = matrix[idx].cuda()
+        new_vector = samples + (noise**0.5)*torch.randn_like(samples)
+        return new_vector.squeeze()
 
     def reconstruct(self, batch):
         graphs, tensors, _ = batch
