@@ -75,9 +75,16 @@ with torch.no_grad():
             smiles_list = [smi for smi in f.readlines()]
         selected_mol_vectors = generate_latent_space_for_mol(
             model, smiles_list).cuda()
-        for _ in tqdm(range(args.nsample // args.batch_size)):
+        if args.mode == 'same':
             smiles_list = model.specific_sample(
                 args.batch_size, selected_mol_vectors, args.mode, greedy=True, noise=args.noise_level)
             with open(args.save_file, 'a') as f:
                 for _, smiles in enumerate(smiles_list):
                     f.write(smiles+'\n')
+        else:
+            for _ in tqdm(range(args.nsample // args.batch_size)):
+                smiles_list = model.specific_sample(
+                    args.batch_size, selected_mol_vectors, args.mode, greedy=True, noise=args.noise_level)
+                with open(args.save_file, 'a') as f:
+                    for _, smiles in enumerate(smiles_list):
+                        f.write(smiles+'\n')
