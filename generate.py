@@ -16,6 +16,14 @@ from hgraph import *
 import rdkit
 from preprocess import tensorize
 
+def remove_atoms_not_in_vocab(smiles, vocab):
+    vocab_atoms = [list(rdkit.Chem.MolFromSmiles(i).GetAtoms()) for i in vocab]
+    vocab_atom_set = set(itertools.chain.from_iterable(vocab_atoms))
+    for i in smiles:
+        mol_atoms = rdkit.Chem.MolFromSmiles(i).GetAtoms()
+        for m in mol_atoms:
+            if m not in vocab_atom_set:
+                print(i)
 
 def generate_latent_space_for_mol(model, smiles):
     molecule_tensor = tensorize(smiles, model.vocab)
@@ -74,7 +82,8 @@ with torch.no_grad():
         with open(args.mols_to_sample) as f:
             smiles_list = [smi for smi in f.readlines()]
         selected_mol_vectors = generate_latent_space_for_mol(
-            model, smiles_list).cuda()
+            model, smiles_list).cuda()i
+        remove_atoms_not_in_vocab(smiles_list, vocab)
         if args.mode == 'same':
             smiles_list = model.specific_sample(
                 args.batch_size, selected_mol_vectors, args.mode, greedy=True, noise=args.noise_level)
