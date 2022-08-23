@@ -11,19 +11,48 @@ import sys
 import numpy as np
 import argparse
 from tqdm import tqdm
+import itertools
 
 from hgraph import *
 import rdkit
 from preprocess import tensorize
 
-def remove_atoms_not_in_vocab(smiles, vocab):
-    vocab_atoms = [list(rdkit.Chem.MolFromSmiles(i).GetAtoms()) for i in vocab]
-    vocab_atom_set = set(itertools.chain.from_iterable(vocab_atoms))
-    for i in smiles:
+def remove_mols_not_in_vocab(smiles, vocab):
+    vocab_atoms = []
+    for i in vocab:
+        try:
+            atoms = rdkit.Chem.MolFromSmiles(i[0]).GetAtoms()
+            for a in atoms:
+                vocab_atoms.append(a.GetSymbol())
+        except:
+            print(i)
+    vocab_atom_set = set(vocab_atoms)
+    mols_to_remove = []
+    for i in smiles[:]:
         mol_atoms = rdkit.Chem.MolFromSmiles(i).GetAtoms()
         for m in mol_atoms:
-            if m not in vocab_atom_set:
-                print(i)
+            if m.GetSymbol() not in vocab_atom_set:
+                if i in smiles:
+                    smiles.remove(i)
+    for i in smiles[:]:
+        smiles_vocab = get_vocab([i])
+        for s in smiles_vocab:
+            if s[1] not in list(zip(*vocab))[1]:
+                if i in smiles:
+                    smiles.remove(i)
+    return smiles
+
+def get_vocab(smiles):
+    vocab = set()
+    for s in smiles:
+        s = s.strip("\r\n ")
+        hmol = MolGraph(s)
+        for node,attr in hmol.mol_tree.nodes(data=True):
+            smiles = attr['smiles']
+            vocab.add( attr['label'] )
+            for i,s in attr['inter_label']:
+                vocab.add( (smiles, s) )
+    return vocab
 
 def generate_latent_space_for_mol(model, smiles):
     molecule_tensor = tensorize(smiles, model.vocab)
@@ -80,13 +109,13 @@ with torch.no_grad():
             smiles_list = model.sample(args.batch_size, greedy=True).cuda()
     else:
         with open(args.mols_to_sample) as f:
-            smiles_list = [smi for smi in f.readlines()]
+            given_smiles_list = [smi for smi in f.readlines()]
+        given_smiles_list = remove_mols_not_in_vocab(given_smiles_list, vocab)
         selected_mol_vectors = generate_latent_space_for_mol(
-            model, smiles_list).cuda()i
-        remove_atoms_not_in_vocab(smiles_list, vocab)
+            model, given_smiles_list).cuda()
         if args.mode == 'same':
             smiles_list = model.specific_sample(
-                args.batch_size, selected_mol_vectors, args.mode, greedy=True, noise=args.noise_level)
+                args.batch_size, selected_mol_vectors, args.mode, greedy=True)
             with open(args.save_file, 'a') as f:
                 for _, smiles in enumerate(smiles_list):
                     f.write(smiles+'\n')
